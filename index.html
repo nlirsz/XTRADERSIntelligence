@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Simulador de Rendimentos</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Montserrat:wght@400;700&display=swap');
+    
+    body {
+      background: #121212;
+      margin: 0;
+      padding: 20px;
+      color: #e0e0e0;
+      font-family: 'Orbitron', sans-serif;
+    }
+    
+    .container {
+      width: 100%;
+      max-width: 800px; /* Define um limite de largura para telas maiores */
+      margin: 0 auto; /* Centraliza o conteúdo */
+    }
+    
+    .input-container {
+      display: flex;
+      justify-content: flex-start; /* Alinha os campos à esquerda */
+      gap: 10px;
+      align-items: flex-end; /* Alinha a parte inferior dos campos */
+      margin-bottom: 20px;
+    }
+    
+    .input-group {
+      flex: 1; /* Garante que os campos de seleção preencham o espaço disponível */
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .input-group label {
+      font-size: 14px;
+      color: #e0e0e0;
+      margin-bottom: 5px;
+      text-align: left;
+      width: 100%;
+    }
+    
+    select {
+      width: 100%; /* Os campos preenchem o espaço disponível */
+      height: 40px;
+      font-size: 14px;
+      border: 1px solid #17eb89;
+      border-radius: 13px;
+      background: rgba(196, 196, 196, 0);
+      text-align: center;
+      font-family: 'Orbitron', sans-serif;
+      color: #e0e0e0;
+    }
+    
+    button {
+      width: 120px; /* Tamanho fixo para o botão */
+      height: 40px;
+      font-size: 14px;
+      font-family: 'Orbitron', sans-serif;
+      color: white;
+      background: linear-gradient(15deg, #22E288, #1D754C);
+      border: none;
+      border-radius: 13px;
+      cursor: pointer;
+      font-weight: 600;
+      text-align: center;
+      margin-top: 5px; /* Adicionado para posicionar abaixo das seleções */
+    }    #results {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .result-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border: 2px solid #17eb89;
+      padding: 10px;
+      border-radius: 10px;
+      background: #1e1e1e;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .result-item p {
+      font-size: 12px;
+      color: #e0e0e0;
+      margin-bottom: 5px;
+    }
+
+    .result-item span {
+      font-size: 20px;
+      font-weight: 700;
+      color: #17eb89;
+    }
+
+    .legend-selectors {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .legend-item {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      border: 2px solid transparent;
+    }
+
+    .legend-item.active {
+      background-color: #17eb89;
+    }
+
+    .legend-item.inactive {
+      background-color: transparent;
+      border-color: #17eb89;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        width: 90%;
+      }
+
+      .result-item span {
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Simulador de Rendimentos</h1>
+
+    <!-- Input alinhados lado a lado com título acima -->
+    <div class="input-container">
+      <div class="input-group">
+        <label for="margemSelect">Margem Inicial</label>
+        <select id="margemSelect">
+          <option value="7k">R$ 7.000</option>
+          <option value="10k">R$ 10.000</option>
+          <option value="15k">R$ 15.000</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label for="periodoSelect">Período</label>
+        <select id="periodoSelect">
+          <option value="48">2021 a 2024 (48 meses)</option>
+          <option value="4">2025 (4 meses)</option>
+        </select>
+      </div>
+      <button onclick="calcular()">Calcular</button>
+    </div>
+
+    <!-- Resultados alinhados lado a lado -->
+    <div id="results">
+      <div class="result-item">
+        <p>Resultado no Período</p>
+        <span id="resultadoPeriodo">R$ 0</span>
+      </div>
+      <div class="result-item">
+        <p>Média Mensal</p>
+        <span id="mediaMensal">R$ 0</span>
+      </div>
+      <div class="result-item">
+        <p>Fator Lucro</p>
+        <span id="fatorLucro">55%</span>
+      </div>
+      <div class="result-item">
+        <p>Drawdown</p>
+        <span id="drawdown">R$ 0</span>
+      </div>
+    </div>
+
+    <canvas id="grafico"></canvas>
+    <div class="legend-selectors">
+      <div class="legend-item active" data-line="base" onclick="toggleLine('base')"></div><span>Base</span>
+      <div class="legend-item active" data-line="parcial" onclick="toggleLine('parcial')"></div><span>Parcial</span>
+      <div class="legend-item active" data-line="total" onclick="toggleLine('total')"></div><span>Total</span>
+    </div>
+  </div>
+
+  <script>
+    const dadosGrafico = [
+    { mes: 1, base7k: 7000, parcial7k: 7000, total7k: 7000, base10k: 10000, base15k: 15000 },
+    { mes: 2, base7k: 8400, parcial7k: 8400, total7k: 8400, base10k: 12000, base15k: 18000 },
+    { mes: 3, base7k: 9800, parcial7k: 9800, total7k: 9800, base10k: 14000, base15k: 21000 },
+    { mes: 4, base7k: 11200, parcial7k: 11200, total7k: 11200, base10k: 16000, base15k: 24000 },
+    { mes: 5, base7k: 12600, parcial7k: 13200, total7k: 13200, base10k: 18000, base15k: 27000 },
+    { mes: 6, base7k: 14000, parcial7k: 15200, total7k: 15200, base10k: 20000, base15k: 30000 },
+    { mes: 7, base7k: 15400, parcial7k: 17200, total7k: 17200, base10k: 22000, base15k: 33000 },
+    { mes: 8, base7k: 16800, parcial7k: 19200, total7k: 20200, base10k: 24000, base15k: 36000 },
+    { mes: 9, base7k: 18200, parcial7k: 21200, total7k: 23200, base10k: 26000, base15k: 39000 },
+    { mes: 10, base7k: 19600, parcial7k: 23200, total7k: 26200, base10k: 28000, base15k: 42000 },
+    { mes: 11, base7k: 21000, parcial7k: 25200, total7k: 29200, base10k: 30000, base15k: 45000 },
+    { mes: 12, base7k: 22400, parcial7k: 27200, total7k: 32200, base10k: 32000, base15k: 48000 },
+    { mes: 13, base7k: 23800, parcial7k: 29200, total7k: 35200, base10k: 34000, base15k: 51000 },
+    { mes: 14, base7k: 25200, parcial7k: 31200, total7k: 38200, base10k: 36000, base15k: 54000 },
+    { mes: 15, base7k: 26600, parcial7k: 33200, total7k: 41200, base10k: 38000, base15k: 57000 },
+    { mes: 16, base7k: 28000, parcial7k: 35200, total7k: 44200, base10k: 40000, base15k: 60000 },
+    { mes: 17, base7k: 29400, parcial7k: 37200, total7k: 47200, base10k: 42000, base15k: 63000 },
+    { mes: 18, base7k: 30800, parcial7k: 39200, total7k: 50200, base10k: 44000, base15k: 66000 },
+    { mes: 19, base7k: 32200, parcial7k: 41200, total7k: 53200, base10k: 46000, base15k: 69000 },
+    { mes: 20, base7k: 33600, parcial7k: 43200, total7k: 56200, base10k: 48000, base15k: 72000 },
+    { mes: 21, base7k: 35000, parcial7k: 45200, total7k: 59200, base10k: 50000, base15k: 75000 },
+    { mes: 22, base7k: 36400, parcial7k: 47200, total7k: 62200, base10k: 52000, base15k: 78000 },
+    { mes: 23, base7k: 37800, parcial7k: 49200, total7k: 65200, base10k: 54000, base15k: 81000 },
+    { mes: 24, base7k: 39200, parcial7k: 51200, total7k: 68200, base10k: 56000, base15k: 84000 },
+    { mes: 25, base7k: 40600, parcial7k: 53200, total7k: 71200, base10k: 58000, base15k: 87000 },
+    { mes: 26, base7k: 42000, parcial7k: 55200, total7k: 74200, base10k: 60000, base15k: 90000 },
+    { mes: 27, base7k: 43400, parcial7k: 57200, total7k: 77200, base10k: 62000, base15k: 93000 },
+    { mes: 28, base7k: 44800, parcial7k: 59200, total7k: 80200, base10k: 64000, base15k: 96000 },
+    { mes: 29, base7k: 46200, parcial7k: 61200, total7k: 83200, base10k: 66000, base15k: 99000 },
+    { mes: 30, base7k: 47600, parcial7k: 63200, total7k: 86200, base10k: 68000, base15k: 102000 },
+    { mes: 31, base7k: 49000, parcial7k: 65200, total7k: 89200, base10k: 70000, base15k: 105000 },
+    { mes: 32, base7k: 50400, parcial7k: 67200, total7k: 92200, base10k: 72000, base15k: 108000 },
+    { mes: 33, base7k: 51800, parcial7k: 69200, total7k: 95200, base10k: 74000, base15k: 111000 },
+    { mes: 34, base7k: 53200, parcial7k: 71200, total7k: 98200, base10k: 76000, base15k: 114000 },
+    { mes: 35, base7k: 54600, parcial7k: 73200, total7k: 101200, base10k: 78000, base15k: 117000 },
+    { mes: 36, base7k: 56000, parcial7k: 75200, total7k: 104200, base10k: 80000, base15k: 120000 },
+    { mes: 37, base7k: 57400, parcial7k: 77200, total7k: 107200, base10k: 82000, base15k: 123000 },
+    { mes: 38, base7k: 58800, parcial7k: 79200, total7k: 110200, base10k: 84000, base15k: 126000 },
+    { mes: 39, base7k: 60200, parcial7k: 81200, total7k: 113200, base10k: 86000, base15k: 129000 },
+    { mes: 40, base7k: 61600, parcial7k: 83200, total7k: 116200, base10k: 88000, base15k: 132000 },
+    { mes: 41, base7k: 63000, parcial7k: 85200, total7k: 119200, base10k: 90000, base15k: 135000 },
+    { mes: 42, base7k: 64400, parcial7k: 87200, total7k: 122200, base10k: 92000, base15k: 138000 },
+    { mes: 43, base7k: 65800, parcial7k: 89200, total7k: 125200, base10k: 94000, base15k: 141000 },
+    { mes: 44, base7k: 67200, parcial7k: 91200, total7k: 128200, base10k: 96000, base15k: 144000 },
+    { mes: 45, base7k: 68600, parcial7k: 93200, total7k: 131200, base10k: 98000, base15k: 147000 },
+    { mes: 46, base7k: 70000, parcial7k: 95200, total7k: 134200, base10k: 100000, base15k: 150000 },
+    { mes: 47, base7k: 71400, parcial7k: 97200, total7k: 137200, base10k: 102000, base15k: 153000 },
+    { mes: 48, base7k: 72800, parcial7k: 99200, total7k: 140200, base10k: 104000, base15k: 156000 }
+      // Aqui você deve incluir os seus dados reais
+    ];
+
+    let chart = null;
+
+    function calcular() {
+      const margemInicial = document.getElementById("margemSelect").value;
+      const periodo = parseInt(document.getElementById("periodoSelect").value);
+
+      const dadosFiltrados = dadosGrafico.filter(d => d.mes <= periodo);
+      const resultadoPeriodo = dadosFiltrados[dadosFiltrados.length - 1][`base${margemInicial}`];
+      const mediaMensal = Math.floor(resultadoPeriodo / periodo);
+      const drawdown = margemInicial === "7k" ? 4200 : margemInicial === "10k" ? 6000 : 9000;
+
+      document.getElementById('resultadoPeriodo').innerText = `R$ ${resultadoPeriodo.toLocaleString('pt-BR')}`;
+      document.getElementById('mediaMensal').innerText = `R$ ${mediaMensal.toLocaleString('pt-BR')}`;
+      document.getElementById('drawdown').innerText = `R$ ${drawdown.toLocaleString('pt-BR')}`;
+      
+      updateChart(margemInicial, dadosFiltrados);
+    }
+
+    function updateChart(margemInicial, dadosFiltrados) {
+      const data = {
+        labels: dadosFiltrados.map(d => `Mês ${d.mes}`),
+        datasets: [
+          {
+            label: 'Base',
+            data: dadosFiltrados.map(d => d[`base${margemInicial}`]),
+            borderColor: '#17eb89',
+            borderWidth: 2,
+            pointRadius: 0, // Remove os pontos do gráfico
+            fill: false
+          },
+          {
+            label: 'Parcial',
+            data: dadosFiltrados.map(d => d[`parcial${margemInicial}`]),
+            borderColor: '#1d754c',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false
+          },
+          {
+            label: 'Total',
+            data: dadosFiltrados.map(d => d[`total${margemInicial}`]),
+            borderColor: '#ffab00',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false
+          }
+        ]
+      };
+
+      const ctx = document.getElementById('grafico').getContext('2d');
+
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: data,
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false } // Remove a legenda padrão do gráfico
+          },
+          scales: {
+            x: { beginAtZero: true },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function toggleLine(line) {
+      const datasetIndex = { base: 0, parcial: 1, total: 2 }[line];
+      const dataset = chart.data.datasets[datasetIndex];
+      dataset.hidden = !dataset.hidden;
+
+      // Atualiza o estilo da legenda com base no estado ativo/inativo
+      const legendItem = document.querySelector(`.legend-item[data-line="${line}"]`);
+      if (dataset.hidden) {
+        legendItem.classList.remove('active');
+        legendItem.classList.add('inactive');
+      } else {
+        legendItem.classList.remove('inactive');
+        legendItem.classList.add('active');
+      }
+
+      chart.update();
+    }
+  </script>
+</body>
+</html>
